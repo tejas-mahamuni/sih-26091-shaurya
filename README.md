@@ -2,6 +2,8 @@
 
 this line is added by tush
 
+Hello Mitro
+
 Private repository contribution guide.
 
 ## 1. Workflow Synopsis
