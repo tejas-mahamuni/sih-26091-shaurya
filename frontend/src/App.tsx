@@ -13,6 +13,8 @@ import { Analyze } from './pages/Analyze';
 import { AnalysisReport } from './pages/AnalysisReport';
 import { About } from './pages/About';
 
+import { Auth } from './pages/Auth';
+
 export function App() {
   return (
     <Router>
@@ -28,6 +30,7 @@ export function App() {
         <div className="flex-1 relative z-10">
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/auth" element={<Auth />} />
             <Route path="/how-it-works" element={<HowItWorks />} />
             <Route path="/market" element={<MarketIntelligence />} />
             <Route path="/finance" element={<FinancialPlan />} />
