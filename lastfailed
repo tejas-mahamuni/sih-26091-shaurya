@@ -1,5 +1,0 @@
-{
-  "backend/tests/test_financial.py": true,
-  "backend/tests/test_health.py": true,
-  "backend/tests/test_locations.py": true
-}
