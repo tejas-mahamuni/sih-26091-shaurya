@@ -2,7 +2,7 @@ const { generateEmbedding } = require("../embeddings/embeddingService");
 
 const { searchVectors } = require("../vector/qdrantService");
 
-const config = require("../config/config");
+const config = require("../../../config/config");
 
 async function retrieveRelevantChunks(question) {
   if (!question || typeof question !== "string") {

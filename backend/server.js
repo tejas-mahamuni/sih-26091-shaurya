@@ -4,13 +4,13 @@ const express = require("express");
 
 const config = require("./src/config/config");
 
-const { ingestPdf } = require("./src/ingestion/ingestionService");
+const { ingestPdf } = require("./src/services/rag/ingestion/ingestionService");
 
-const { retrieveRelevantChunks } = require("./src/retrieval/retrievalService");
+const { retrieveRelevantChunks } = require("./src/services/rag/retrieval/retrievalService");
 
-const { generateAnswer } = require("./src/llm/ollamaService");
+const { generateAnswer } = require("./src/services/rag/llm/ollamaService");
 
-const { getCollectionInfo } = require("./src/vector/qdrantService");
+const { getCollectionInfo } = require("./src/services/rag/vector/qdrantService");
 
 const app = express();
 
