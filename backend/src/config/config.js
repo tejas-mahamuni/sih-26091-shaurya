@@ -26,6 +26,11 @@ const config = {
 
     topK: Number(process.env.TOP_K) || 5,
   },
+
+  supabase: {
+    url: process.env.SUPABASE_URL,
+    key: process.env.SUPABASE_ANON_KEY,
+  }
 };
 
 module.exports = config;
