@@ -1,5 +1,5 @@
 const { QdrantClient } = require("@qdrant/js-client-rest");
-const config = require("../config/config");
+const config = require("../../../config/config");
 
 const qdrantUrl = new URL(config.qdrant.url);
 

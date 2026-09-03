@@ -1,4 +1,4 @@
-const config = require("../config/config");
+const config = require("../../../config/config");
 
 function chunkText(text) {
   if (!text || typeof text !== "string") {
