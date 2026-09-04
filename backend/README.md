@@ -7,7 +7,7 @@ Microservice architecture — each service runs independently.
 | Service | Language | Port | Purpose |
 |---------|----------|------|--------|
 | `services/rag/` | Node.js (Express) | 3000 | RAG pipeline — PDF ingestion, vector search, LLM Q&A |
-| `services/financial/` | Python (FastAPI) | 8000 | Financial calculator — NBCFDC scheme matching, EMI, amortization |
+| `services/core_api/` | Python (FastAPI) | 8000 | Core Engine — Module 1 (Feasibility Engine) & Module 2 (Financial Structure) |
 
 ## Running Services
 
@@ -20,16 +20,16 @@ node server.js
 
 Requires: Ollama (localhost:11434), Qdrant (localhost:6333)
 
-### Financial Service (Python)
+### Core Engine Service (Python)
 ```bash
-cd services/financial
+cd services/core_api
 python -m venv venv
 venv\Scripts\activate      # Windows
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-Requires: Supabase PostgreSQL (configured via .env)
+Requires: Supabase PostgreSQL + PostGIS (configured via .env)
 
 ## Adding New Services
 
