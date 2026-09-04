@@ -14,7 +14,15 @@ import {
   updateProfile,
 } from "firebase/auth";
 import type { User } from "firebase/auth";
-import { auth, githubProvider, googleProvider } from "../firebase.config";
+import {
+  collection,
+  query,
+  orderBy,
+  getDocs,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
+import { auth, db, githubProvider, googleProvider } from "../firebase.config";
 
 const initialForm = {
   name: "",
@@ -237,32 +245,222 @@ export function Auth() {
     resetForm();
   };
 
+  // ── History State ──
+  const [history, setHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const fetchHistory = async (uid: string) => {
+    setHistoryLoading(true);
+    try {
+      const q = query(
+        collection(db, `users/${uid}/calculations`),
+        orderBy("timestamp", "desc")
+      );
+      const snap = await getDocs(q);
+      setHistory(
+        snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      );
+    } catch {
+      // Firestore fetch is best-effort
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const deleteCalc = async (calcId: string) => {
+    if (!authUser) return;
+    try {
+      await deleteDoc(doc(db, `users/${authUser.uid}/calculations`, calcId));
+      setHistory((prev) => prev.filter((h) => h.id !== calcId));
+    } catch {
+      // silent
+    }
+  };
+
+  useEffect(() => {
+    if (authUser) fetchHistory(authUser.uid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser]);
+
+  const fmt = (n: number) =>
+    `₹${n?.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+  const fmtDec = (n: number) =>
+    `₹${n?.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
   if (authUser) {
     return (
-      <div className="pt-24 min-h-screen flex items-center justify-center px-4 relative z-20">
-        <div className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-xl">
-          <div className="space-y-2 text-center">
-            <h1 className="text-2xl font-bold text-gray-900">You are logged in</h1>
-            <p className="text-sm text-gray-600">{authUser.displayName || authUser.email}</p>
-            <p className="text-xs text-gray-500">
-              {authUser.emailVerified ? "Email verified" : "Email not verified yet"}
+      <div className="pt-24 min-h-screen px-4 relative z-20 max-w-3xl mx-auto pb-16 space-y-6">
+
+        {/* ── Profile Card ── */}
+        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <h1 className="text-xl font-bold text-gray-900">
+              {authUser.displayName || "Welcome"}
+            </h1>
+            <p className="text-sm text-gray-500">{authUser.email}</p>
+            <p className="text-xs text-gray-400">
+              {authUser.emailVerified
+                ? "✓ Email verified"
+                : "⚠ Email not verified yet"}
             </p>
           </div>
-
-          {message ? (
-            <div className="mt-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
-              {message}
-            </div>
-          ) : null}
-
           <button
             type="button"
             onClick={handleLogout}
             disabled={loading}
-            className="mt-6 w-full rounded-xl bg-gray-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-70"
+            className="rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:opacity-70"
           >
-            {loading ? "Please wait..." : "Logout"}
+            {loading ? "..." : "Logout"}
           </button>
+        </div>
+
+        {message ? (
+          <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+            {message}
+          </div>
+        ) : null}
+
+        {/* ── Calculation History ── */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-gray-900">
+              Your Calculations
+            </h2>
+            <span className="text-xs text-gray-400 font-mono">
+              {history.length} saved
+            </span>
+          </div>
+
+          {historyLoading ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-8 text-center text-sm text-gray-400">
+              Loading history...
+            </div>
+          ) : history.length === 0 ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-8 text-center space-y-2">
+              <p className="text-sm text-gray-500">No calculations yet.</p>
+              <p className="text-xs text-gray-400">
+                Go to{" "}
+                <a href="/finance" className="text-[#C9793A] underline">
+                  Financial Plan
+                </a>{" "}
+                to run your first calculation.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {history.map((calc) => {
+                const isExpanded = expandedId === calc.id;
+                const ts = calc.timestamp?.toDate?.()
+                  ? calc.timestamp.toDate().toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "—";
+
+                return (
+                  <div
+                    key={calc.id}
+                    className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-xs"
+                  >
+                    {/* Summary row */}
+                    <div
+                      className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition"
+                      onClick={() =>
+                        setExpandedId(isExpanded ? null : calc.id)
+                      }
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">
+                          {calc.scheme?.name || "Calculation"}
+                        </p>
+                        <p className="text-xs text-gray-400 font-mono mt-0.5">
+                          {calc.scheme?.category || ""} •{" "}
+                          {calc.scheme?.interest_rate}% •{" "}
+                          {calc.scheme?.tenure_months} months
+                        </p>
+                      </div>
+                      <div className="text-right ml-4 shrink-0">
+                        <p className="text-sm font-bold text-[#C9793A] font-mono">
+                          EMI {calc.repayment?.monthly_emi ? fmtDec(calc.repayment.monthly_emi) : "—"}
+                        </p>
+                        <p className="text-[10px] text-gray-400">{ts}</p>
+                      </div>
+                    </div>
+
+                    {/* Expanded detail */}
+                    {isExpanded && (
+                      <div className="border-t border-gray-100 px-5 py-4 bg-gray-50/50 space-y-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                          <div>
+                            <span className="text-gray-400 block">
+                              Project Cost
+                            </span>
+                            <span className="font-mono font-semibold text-gray-900">
+                              {calc.project_cost ? fmt(calc.project_cost) : "—"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block">
+                              Eligible Loan
+                            </span>
+                            <span className="font-mono font-semibold text-[#C9793A]">
+                              {calc.loan?.eligible_amount
+                                ? fmt(calc.loan.eligible_amount)
+                                : "—"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block">
+                              Total Interest
+                            </span>
+                            <span className="font-mono font-semibold text-gray-900">
+                              {calc.repayment?.total_interest
+                                ? fmt(calc.repayment.total_interest)
+                                : "—"}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block">
+                              Your Margin
+                            </span>
+                            <span className="font-mono font-semibold text-gray-900">
+                              {calc.available_margin
+                                ? fmt(calc.available_margin)
+                                : "—"}
+                            </span>
+                          </div>
+                        </div>
+
+                        {calc.warnings && calc.warnings.length > 0 && (
+                          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                            {calc.warnings.map((w: string, i: number) => (
+                              <p key={i}>{w}</p>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex justify-end">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteCalc(calc.id);
+                            }}
+                            className="text-xs text-red-500 hover:text-red-700 transition font-medium"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     );

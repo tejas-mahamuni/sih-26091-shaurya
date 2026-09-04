@@ -94,6 +94,7 @@ export const FinancialPlan: React.FC = () => {
   // UI state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [schemeError, setSchemeError] = useState<any>(null);
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [showAmortization, setShowAmortization] = useState(false);
   const [schemes, setSchemes] = useState<Scheme[]>([]);
@@ -115,6 +116,7 @@ export const FinancialPlan: React.FC = () => {
 
     setLoading(true);
     setError('');
+    setSchemeError(null);
 
     try {
       const payload: Record<string, unknown> = {
@@ -132,7 +134,14 @@ export const FinancialPlan: React.FC = () => {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Calculation failed.');
+      if (!response.ok) {
+        // Check if it's a structured scheme error (422)
+        if (data.detail && typeof data.detail === 'object' && data.detail.message) {
+          setSchemeError(data.detail);
+          return;
+        }
+        throw new Error(typeof data.detail === 'string' ? data.detail : 'Calculation failed.');
+      }
 
       setResult(data);
 
@@ -305,6 +314,49 @@ export const FinancialPlan: React.FC = () => {
 
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</div>
+          )}
+
+          {schemeError && (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="text-sm font-bold text-amber-800">{schemeError.message}</span>
+              </div>
+              <p className="text-xs text-amber-700">{schemeError.reason}</p>
+              {schemeError.suggestions && (
+                <div className="space-y-1">
+                  <span className="text-[10px] font-semibold text-amber-800 uppercase">What you can do:</span>
+                  <ul className="list-disc list-inside text-xs text-amber-700 space-y-0.5">
+                    {schemeError.suggestions.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                  </ul>
+                </div>
+              )}
+              {schemeError.available_schemes && (
+                <div className="mt-2 overflow-x-auto">
+                  <span className="text-[10px] font-semibold text-amber-800 uppercase block mb-1">Available Schemes:</span>
+                  <table className="w-full text-[10px]">
+                    <thead className="bg-amber-100/50">
+                      <tr>
+                        <th className="px-2 py-1 text-left text-amber-800">Scheme</th>
+                        <th className="px-2 py-1 text-right text-amber-800">Max Project Cost</th>
+                        <th className="px-2 py-1 text-right text-amber-800">Max Loan</th>
+                        <th className="px-2 py-1 text-right text-amber-800">Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-amber-100">
+                      {schemeError.available_schemes.map((s: any, i: number) => (
+                        <tr key={i}>
+                          <td className="px-2 py-1 text-amber-900">{s.name}</td>
+                          <td className="px-2 py-1 text-right font-mono text-amber-900">{fmt(s.max_project_cost)}</td>
+                          <td className="px-2 py-1 text-right font-mono text-amber-900">{fmt(s.max_loan)}</td>
+                          <td className="px-2 py-1 text-right font-mono text-amber-900">{s.rate}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
 
           {!auth.currentUser && (
